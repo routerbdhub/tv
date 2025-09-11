@@ -78,17 +78,11 @@
       display:flex; align-items:center; gap:12px;
       z-index:60;
     }
-    #controlsBar button {
-      background:none; border:none; cursor:pointer;
-      display:flex; align-items:center; justify-content:center;
-      padding:6px; border-radius:6px;
-      color:white;
+    #controlsBar button, #controlsBar input[type=range] {
+      background:none; border:none; color:white; cursor:pointer;
     }
-    #controlsBar button svg {
-      width:22px; height:22px; fill:white;
-    }
+    #controlsBar button {font-size:16px; padding:6px 10px; border-radius:6px;}
     #progress {flex:1;}
-    #volume {width:100px;}
   </style>
 </head>
 <body>
@@ -114,17 +108,11 @@
 
       <!-- Custom controls -->
       <div id="controlsBar">
-        <button id="playPause">
-          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-        </button>
+        <button id="playPause">▶️</button>
         <input id="progress" type="range" min="0" max="100" value="0">
-        <button id="muteBtn">
-          <svg id="volIcon" viewBox="0 0 24 24"><path d="M5 9v6h4l5 5V4l-5 5H5z"/></svg>
-        </button>
+        <button id="muteBtn">🔊</button>
         <input id="volume" type="range" min="0" max="1" step="0.05" value="1">
-        <button id="fsBtn">
-          <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm0-4h2V7h3V5H7v5zm10 9h-3v2h5v-5h-2v3zm-3-14v2h3v3h2V5h-5z"/></svg>
-        </button>
+        <button id="fsBtn">⛶</button>
       </div>
     </div>
   </div>
@@ -132,7 +120,7 @@
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.0/dist/hls.min.js"></script>
   <script>
     let channels = [], curIndex=-1, hls=null;
-    const player=document.getElementById('player');
+    const player = document.getElementById('player');
     const curTitle=document.getElementById('curTitle');
     const curNumber=document.getElementById('curNumber');
     const curLogo=document.getElementById('curLogo');
@@ -140,13 +128,15 @@
     const numOSD=document.getElementById('numOSD');
     const volOSD=document.getElementById('volOSD');
     const volFill=volOSD.querySelector('.fill');
+
+    // controls
     const playPause=document.getElementById('playPause');
     const muteBtn=document.getElementById('muteBtn');
-    const volIcon=document.getElementById('volIcon');
     const fsBtn=document.getElementById('fsBtn');
     const progress=document.getElementById('progress');
     const volume=document.getElementById('volume');
 
+    // Parse M3U
     function parseM3U(text){
       channels=[]; let lines=text.split(/\r?\n/), lastMeta='', num=1;
       for(const raw of lines){
@@ -189,7 +179,8 @@
       if(i<0||i>=channels.length) return;
       curIndex=i; let ch=channels[i];
       curTitle.textContent=ch.title; curNumber.textContent='#'+ch.num; curLogo.src=ch.logo||'';
-      loadStream(ch.url); hideNumOSD();
+      loadStream(ch.url);
+      hideNumOSD();
     }
 
     function showSideList(){renderSideList();sideList.classList.add('open');}
@@ -234,9 +225,9 @@
 
     // controls
     playPause.onclick=()=>{if(player.paused){player.play();}else{player.pause();}};
-    player.onplay=()=>playPause.innerHTML='<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
-    player.onpause=()=>playPause.innerHTML='<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
-    muteBtn.onclick=()=>{player.muted=!player.muted; volIcon.innerHTML=player.muted?'<path d="M16.5 12l4.5 4.5-1.5 1.5L15 13.5l-4.5 4.5H7v-12h3.5L15 10.5l4.5-4.5 1.5 1.5L16.5 12z"/>':'<path d="M5 9v6h4l5 5V4l-5 5H5z"/>';};
+    player.onplay=()=>playPause.textContent="⏸";
+    player.onpause=()=>playPause.textContent="▶️";
+    muteBtn.onclick=()=>{player.muted=!player.muted; muteBtn.textContent=player.muted?"🔇":"🔊";}
     volume.oninput=()=>{player.volume=volume.value; showVolume();}
     player.ontimeupdate=()=>{if(!progress.dragging) progress.value=(player.currentTime/player.duration||0)*100;}
     progress.oninput=()=>{progress.dragging=true;}
