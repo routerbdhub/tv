@@ -42,6 +42,9 @@
     const btn = document.getElementById('check');
     const msg = document.getElementById('messageArea');
 
+    // Allowed activation keys
+    const validKeys = ["JUT5E3", "H3UY2E", "H2I32U", "J25O3I", "KJ4MX5"];
+
     input.addEventListener('input', () => {
       input.value = input.value.toUpperCase().replace(/[^0-9A-Z]/g, '');
       clearMessage();
@@ -57,13 +60,12 @@
     });
 
     function validate(){
-      const v = input.value.trim();
-      const digits = /^\d{6}$/;
-      const letters = /^[A-Z]{6}$/;
-      if (digits.test(v) || letters.test(v)){
-        show('Something Wrong', 'Faild');
+      const v = input.value.trim().toUpperCase();
+      if (validKeys.includes(v)) {
+        show('✔ Activation Successful! Redirecting...', 'success');
+        setTimeout(() => { window.location.href = "tv.html"; }, 1000);
       } else {
-        show('✘ ভুল কোড — ৬ সংখ্যার বা ৬ বড় হাতের অক্ষর দিতে হবে।', 'error');
+        show('✘ Invalid Code — please try again.', 'error');
       }
     }
 
