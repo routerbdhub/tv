@@ -61,7 +61,7 @@
       const digits = /^\d{6}$/;
       const letters = /^[A-Z]{6}$/;
       if (digits.test(v) || letters.test(v)){
-        show('✔ কোড গ্রহণযোগ্য', 'success');
+        show('Something Wrong', 'Faild');
       } else {
         show('✘ ভুল কোড — ৬ সংখ্যার বা ৬ বড় হাতের অক্ষর দিতে হবে।', 'error');
       }
