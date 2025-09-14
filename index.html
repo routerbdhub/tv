@@ -23,6 +23,7 @@
     .current-info .num{color:var(--accent); font-size:14px}
     .controls{position:absolute; right:14px; top:14px; display:flex; gap:8px}
     .btn{background:var(--glass); padding:8px 10px; border-radius:8px; cursor:pointer}
+    #btnMenu { font-size:20px; line-height:1; padding:6px 10px; }
 
     /* side list overlay */
     #sideList{
@@ -44,6 +45,7 @@
       cursor: pointer;
       color: var(--text);
       margin-bottom: 8px;
+      position:relative;
     }
     #sideList .side-item:focus {
       outline: 3px solid rgba(29,185,84,0.22);
@@ -115,11 +117,7 @@
       </div>
 
       <div class="controls">
-        <label class="btn" style="cursor:pointer">
-          Load Playlist
-          <input id="fileInput" type="file" accept=".m3u,.m3u8" style="display:none" />
-        </label>
-        <div id="btnBack" class="btn">Exit</div>
+        <button id="btnMenu" class="btn">⋮</button>
       </div>
 
       <!-- Side channel list -->
@@ -131,7 +129,7 @@
   </div>
 
   <footer>
-    Controls: Left — Show List | Up/Down — Navigate | Enter — Select | Right — Hide List | Numbers — Jump to Channel | Back/Esc — Exit
+    Controls: Left / ⋮ — Show List | Up/Down — Navigate | Enter — Select | Right — Hide List | Numbers — Jump to Channel | Esc — Clear
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.0/dist/hls.min.js"></script>
@@ -140,14 +138,13 @@
     let curIndex = -1;
     let hls = null;
 
-    const fileInput = document.getElementById('fileInput');
     const player = document.getElementById('player');
     const curTitle = document.getElementById('curTitle');
     const curNumber = document.getElementById('curNumber');
     const curLogo = document.getElementById('curLogo');
     const sideList = document.getElementById('sideList');
-    const btnBack = document.getElementById('btnBack');
     const numOSD = document.getElementById('numOSD');
+    const btnMenu = document.getElementById('btnMenu');
 
     function parseM3U(text){
       channels = [];
@@ -184,11 +181,19 @@
         btn.innerHTML = `
           <div class="logo"><img src="${ch.logo||''}" alt="logo" onerror="this.style.opacity=.25"></div>
           <div style="display:flex;flex-direction:column;flex:1;align-items:flex-start">
-            <div style="display:flex;align-items:center"><span class="ch-number">${ch.num}</span><span class="ch-name" style="margin-left:6px">${ch.title}</span></div>
-          </div>`;
-        btn.addEventListener('click', ()=> { openChannel(idx); hideSideList(); });
+            <div style="display:flex;align-items:center">
+              <span class="ch-number">${ch.num}</span>
+              <span class="ch-name" style="margin-left:6px">${ch.title}</span>
+            </div>
+          </div>
+        `;
+        btn.addEventListener('click', ()=> {
+          openChannel(idx);
+          hideSideList();
+        });
         sideList.appendChild(btn);
       });
+      refreshSideActive();
     }
 
     function loadStream(url){
@@ -217,12 +222,6 @@
       hideNumOSD();
     }
 
-    function exitPlayer(){
-      try{ player.pause(); player.src=''; if(hls){hls.destroy();hls=null;} }catch(e){}
-    }
-
-    btnBack.addEventListener('click', exitPlayer);
-
     function showSideList(){
       renderSideList();
       sideList.classList.add('open');
@@ -249,27 +248,23 @@
       const items = Array.from(sideList.querySelectorAll('button.side-item'));
       if(!items.length) return;
 
-      if(ev.key === 'ArrowUp' || ev.key === 'ArrowDown' || ev.key === 'ChannelUp' || ev.key === 'ChannelDown'){
+      if(ev.key === 'ArrowUp' || ev.key === 'ArrowDown'){
         ev.preventDefault();
         let current = items.indexOf(document.activeElement);
         if(current === -1) current = 0;
-        if(ev.key === 'ArrowUp' || ev.key === 'ChannelUp') current = Math.max(0, current-1);
-        if(ev.key === 'ArrowDown' || ev.key === 'ChannelDown') current = Math.min(items.length-1, current+1);
+        if(ev.key === 'ArrowUp') current = Math.max(0, current-1);
+        if(ev.key === 'ArrowDown') current = Math.min(items.length-1, current+1);
         items[current].focus();
       }
-      if(ev.key === 'Enter' || ev.key === 'MediaPlayPause'){
+      if(ev.key === 'Enter'){
         ev.preventDefault();
         const idx = parseInt(document.activeElement.dataset.index,10);
         openChannel(idx);
         hideSideList();
       }
-      if(ev.key === 'ArrowRight' || ev.key === 'MediaFastForward' || ev.key === 'Escape' || ev.key === 'Backspace'){ 
+      if(ev.key === 'ArrowRight' || ev.key === 'Escape'){ 
         ev.preventDefault(); 
         hideSideList(); 
-      }
-      if(ev.key === 'MediaStop' || ev.key === 'GoBack'){ 
-        ev.preventDefault(); 
-        exitPlayer(); 
       }
     });
 
@@ -278,7 +273,15 @@
       if(sideList.classList.contains('open')) return;
       if(e.key==='ArrowLeft'){ e.preventDefault(); showSideList(); }
       else if(e.key==='ArrowRight'){ e.preventDefault(); hideSideList(); }
-      else if(e.key==='Escape'||e.key==='Backspace'){ e.preventDefault(); exitPlayer(); }
+    });
+
+    // Three-dot menu button toggles side list
+    btnMenu.addEventListener("click", () => {
+      if (sideList.classList.contains("open")) {
+        hideSideList();
+      } else {
+        showSideList();
+      }
     });
 
     // Number input channel change with OSD
@@ -323,14 +326,6 @@
         e.preventDefault();
         jumpToChannel();
       }
-    });
-
-    // Manual file load
-    fileInput.addEventListener('change', async e=>{
-      const f=e.target.files[0]; if(!f) return;
-      const text = await f.text();
-      parseM3U(text);
-      if(channels.length) openChannel(0);
     });
 
     // Auto load tv.m3u if present
