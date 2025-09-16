@@ -240,10 +240,18 @@
             await new Promise(resolve => setTimeout(resolve, 1500));
 
             if (validCodes.includes(code)) {
-                sessionStorage.setItem("activated", "true");
-                showMessage('✓ Activation successful!', 'success');
-                btnText.textContent = 'Activated';
-                activateBtn.disabled = true;
+                // Save activation status and code
+                localStorage.setItem("bdiptv_activated", "true");
+                localStorage.setItem("bdiptv_code", code);
+                localStorage.setItem("bdiptv_activation_date", new Date().toISOString());
+                
+                showMessage('✓ Activation successful! Redirecting...', 'success');
+                btnText.textContent = 'Redirecting...';
+                
+                // Redirect after 2 seconds
+                setTimeout(() => {
+                    window.location.href = "tv.html";
+                }, 2000);
             } else {
                 setLoading(false);
                 showMessage('✗ Invalid code', 'error');
