@@ -21,6 +21,22 @@
     .player-container { position: relative; width: 100vw; height: 100vh; background: #000; display: flex; align-items: center; justify-content: center; }
     #videoPlayer { width: 100%; height: 100%; object-fit: contain; background: #000; }
 
+    /* Loading indicator */
+    .loading-indicator {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      display: flex; flex-direction: column; align-items: center; gap: 1rem; z-index: 50;
+    }
+    .spinner {
+      width: 40px; height: 40px; border: 4px solid var(--glass);
+      border-top: 4px solid var(--primary); border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .loading-text { color: var(--text-secondary); font-size: 0.9rem; }
+
     /* Top Overlay */
     .top-overlay {
       position: absolute; top: 0; left: 0; right: 0; padding: 1.5rem;
@@ -42,7 +58,7 @@
       width: 48px; height: 48px; background: rgba(0,0,0,0.5); backdrop-filter: blur(20px);
       border: 1px solid var(--glass-border); border-radius: 12px; color: var(--text-primary);
       cursor: pointer; display: flex; align-items: center; justify-content: center;
-      transition: all 0.3s ease; font-size: 1.1rem;
+      transition: all 0.3s ease; font-size: 1.1rem; border: none;
     }
     .control-btn:hover { background: var(--glass-strong); transform: translateY(-1px); box-shadow: var(--shadow); }
     .logout-btn { background: linear-gradient(135deg, var(--error), #dc2626); }
@@ -58,6 +74,31 @@
     .channel-count { color: var(--text-muted); font-size: 0.9rem; }
     .channels-list { flex: 1; overflow-y: auto; padding: 1rem 0; }
 
+    /* Channel items */
+    .channel-item {
+      display: flex; align-items: center; gap: 1rem; padding: 1rem 1.5rem;
+      cursor: pointer; transition: all 0.2s ease; border-left: 3px solid transparent;
+    }
+    .channel-item:hover { background: var(--glass); }
+    .channel-item.active { background: var(--glass-strong); border-left-color: var(--primary); }
+    .channel-item-logo {
+      width: 48px; height: 32px; border-radius: 6px; overflow: hidden;
+      background: var(--glass); display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; color: var(--text-muted);
+    }
+    .channel-item-logo img { width: 100%; height: 100%; object-fit: contain; }
+    .channel-item-info { flex: 1; }
+    .channel-item-name { font-weight: 500; margin-bottom: 0.25rem; }
+    .channel-item-number { font-size: 0.8rem; color: var(--text-muted); }
+
+    /* Error message */
+    .error-message {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(239, 68, 68, 0.1); border: 1px solid var(--error);
+      border-radius: 12px; padding: 2rem; text-align: center; color: var(--error);
+      max-width: 400px; z-index: 50;
+    }
+
     /* Logout popup */
     .logout-popup {
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -70,12 +111,30 @@
       0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
       100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
     }
+
+    /* Scrollbar styling */
+    .channels-list::-webkit-scrollbar { width: 6px; }
+    .channels-list::-webkit-scrollbar-track { background: transparent; }
+    .channels-list::-webkit-scrollbar-thumb { background: var(--glass); border-radius: 3px; }
+    .channels-list::-webkit-scrollbar-thumb:hover { background: var(--glass-strong); }
   </style>
 </head>
 <body>
   <div class="player-container" id="playerContainer">
     <!-- Video Player -->
     <video id="videoPlayer" controls playsinline></video>
+
+    <!-- Loading Indicator -->
+    <div class="loading-indicator" id="loadingIndicator">
+      <div class="spinner"></div>
+      <div class="loading-text">Loading channels...</div>
+    </div>
+
+    <!-- Error Message -->
+    <div class="error-message" id="errorMessage" style="display: none;">
+      <h3>Failed to Load Playlist</h3>
+      <p>Could not load tv.m3u file. Please check if the file exists.</p>
+    </div>
 
     <!-- Top Overlay -->
     <div class="top-overlay">
@@ -94,9 +153,12 @@
             <line x1="3" y1="18" x2="21" y2="18"></line>
           </svg>
         </button>
-        <!-- 🔴 Updated logout button -->
         <button class="control-btn logout-btn" id="logoutBtn" title="Logout">
-          <img src="logout.png" alt="Logout" style="width:20px; height:20px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16,17 21,12 16,7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
         </button>
       </div>
     </div>
@@ -119,9 +181,220 @@
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.0/dist/hls.min.js"></script>
   <script>
-    // logout function (updated)
+    // Global variables
+    let channels = [];
+    let currentChannelIndex = 0;
+    let hls = null;
+    
+    // DOM elements
+    const videoPlayer = document.getElementById('videoPlayer');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const errorMessage = document.getElementById('errorMessage');
+    const channelsList = document.getElementById('channelsList');
+    const channelCount = document.getElementById('channelCount');
+    const currentTitle = document.getElementById('currentTitle');
+    const currentNumber = document.getElementById('currentNumber');
+    const currentLogo = document.getElementById('currentLogo');
+    const channelSidebar = document.getElementById('channelSidebar');
+    const menuBtn = document.getElementById('menuBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    // Parse M3U playlist
+    function parseM3U(m3uText) {
+      const lines = m3uText.split('\n').map(line => line.trim()).filter(line => line);
+      const channels = [];
+      
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].startsWith('#EXTINF:')) {
+          const infoLine = lines[i];
+          const urlLine = lines[i + 1];
+          
+          if (urlLine && !urlLine.startsWith('#')) {
+            // Extract channel name (after the last comma)
+            const nameMatch = infoLine.split(',').pop();
+            
+            // Extract logo URL
+            const logoMatch = infoLine.match(/tvg-logo="([^"]+)"/);
+            
+            // Extract group title
+            const groupMatch = infoLine.match(/group-title="([^"]+)"/);
+            
+            if (nameMatch && urlLine) {
+              channels.push({
+                name: nameMatch.trim(),
+                url: urlLine.trim(),
+                logo: logoMatch ? logoMatch[1] : '',
+                group: groupMatch ? groupMatch[1] : 'General'
+              });
+            }
+          }
+        }
+      }
+      
+      return channels;
+    }
+
+    // Load M3U playlist
+    async function loadM3UPlaylist() {
+      try {
+        loadingIndicator.style.display = 'flex';
+        errorMessage.style.display = 'none';
+        
+        const response = await fetch('tv.m3u');
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const m3uText = await response.text();
+        channels = parseM3U(m3uText);
+        
+        if (channels.length === 0) {
+          throw new Error('No channels found in playlist');
+        }
+        
+        populateChannels();
+        loadingIndicator.style.display = 'none';
+        
+        // Auto-play first channel
+        playChannel(0);
+        
+      } catch (error) {
+        console.error('Failed to load M3U playlist:', error);
+        loadingIndicator.style.display = 'none';
+        errorMessage.style.display = 'block';
+        errorMessage.innerHTML = `
+          <h3>Failed to Load Playlist</h3>
+          <p>${error.message}</p>
+        `;
+      }
+    }
+
+    // Populate channels in sidebar
+    function populateChannels() {
+      channelsList.innerHTML = '';
+      channelCount.textContent = `${channels.length} channels`;
+      
+      channels.forEach((channel, index) => {
+        const channelItem = document.createElement('div');
+        channelItem.className = 'channel-item';
+        channelItem.innerHTML = `
+          <div class="channel-item-logo">
+            ${channel.logo ? `<img src="${channel.logo}" alt="${channel.name}" onerror="this.parentElement.innerHTML='${channel.name.charAt(0)}'">` : channel.name.charAt(0)}
+          </div>
+          <div class="channel-item-info">
+            <div class="channel-item-name">${channel.name}</div>
+            <div class="channel-item-number">#${index + 1} • ${channel.group}</div>
+          </div>
+        `;
+        
+        channelItem.addEventListener('click', () => {
+          playChannel(index);
+          toggleSidebar(false);
+        });
+        
+        channelsList.appendChild(channelItem);
+      });
+    }
+
+    // Play channel
+    function playChannel(index) {
+      if (index < 0 || index >= channels.length) return;
+      
+      currentChannelIndex = index;
+      const channel = channels[index];
+      
+      // Update UI
+      currentTitle.textContent = channel.name;
+      currentNumber.textContent = `#${index + 1}`;
+      currentLogo.src = channel.logo || '';
+      
+      // Update active channel in sidebar
+      document.querySelectorAll('.channel-item').forEach((item, i) => {
+        item.classList.toggle('active', i === index);
+      });
+      
+      // Play video
+      if (hls) {
+        hls.destroy();
+        hls = null;
+      }
+      
+      if (Hls.isSupported()) {
+        hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+          backBufferLength: 90
+        });
+        hls.loadSource(channel.url);
+        hls.attachMedia(videoPlayer);
+        
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          videoPlayer.play().catch(e => console.log('Auto-play prevented:', e));
+        });
+        
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            console.error('HLS Error:', data);
+            // Try next channel on fatal error
+            setTimeout(() => {
+              if (index < channels.length - 1) {
+                playChannel(index + 1);
+              }
+            }, 2000);
+          }
+        });
+      } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+        // Safari native HLS support
+        videoPlayer.src = channel.url;
+        videoPlayer.play().catch(e => console.log('Auto-play prevented:', e));
+      } else {
+        console.error('HLS not supported');
+      }
+    }
+
+    // Toggle sidebar
+    function toggleSidebar(show = null) {
+      const isOpen = channelSidebar.classList.contains('open');
+      if (show === null) {
+        channelSidebar.classList.toggle('open');
+      } else {
+        channelSidebar.classList.toggle('open', show);
+      }
+    }
+
+    // Keyboard controls
+    document.addEventListener('keydown', (e) => {
+      switch (e.code) {
+        case 'ArrowUp':
+          e.preventDefault();
+          if (currentChannelIndex > 0) {
+            playChannel(currentChannelIndex - 1);
+          }
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          if (currentChannelIndex < channels.length - 1) {
+            playChannel(currentChannelIndex + 1);
+          }
+          break;
+        case 'Escape':
+          toggleSidebar(false);
+          break;
+        case 'KeyM':
+          toggleSidebar();
+          break;
+      }
+    });
+
+    // Click outside sidebar to close
+    document.addEventListener('click', (e) => {
+      if (!channelSidebar.contains(e.target) && !menuBtn.contains(e.target)) {
+        toggleSidebar(false);
+      }
+    });
+
+    // Logout function
     function logout() {
-      localStorage.removeItem('bdiptv_activated');
       const popup = document.getElementById('logoutPopup');
       popup.style.display = 'block';
       setTimeout(() => {
@@ -129,8 +402,35 @@
       }, 1500);
     }
 
-    // add event listener
-    document.getElementById('logoutBtn').addEventListener('click', logout);
+    // Event listeners
+    menuBtn.addEventListener('click', () => toggleSidebar());
+    logoutBtn.addEventListener('click', logout);
+
+    // Auto-hide controls
+    let controlsTimeout;
+    const topOverlay = document.querySelector('.top-overlay');
+    
+    function showControls() {
+      topOverlay.style.opacity = '1';
+      clearTimeout(controlsTimeout);
+      controlsTimeout = setTimeout(hideControls, 3000);
+    }
+    
+    function hideControls() {
+      if (!channelSidebar.classList.contains('open')) {
+        topOverlay.style.opacity = '0';
+      }
+    }
+    
+    document.addEventListener('mousemove', showControls);
+    document.addEventListener('keydown', showControls);
+    videoPlayer.addEventListener('click', showControls);
+    
+    // Initialize
+    showControls();
+    
+    // Load playlist when page loads
+    document.addEventListener('DOMContentLoaded', loadM3UPlaylist);
   </script>
 </body>
 </html>
