@@ -1,927 +1,136 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BDIPTV Player - Premium IPTV Experience</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BDIPTV Player - Premium IPTV Experience</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --primary: #6366f1; --secondary: #ec4899; --success: #10b981; --warning: #f59e0b;
+      --error: #ef4444; --dark: #0f172a; --dark-light: #1e293b; --dark-lighter: #334155;
+      --glass: rgba(255, 255, 255, 0.1); --glass-strong: rgba(255, 255, 255, 0.15);
+      --glass-border: rgba(255, 255, 255, 0.2); --text-primary: #f8fafc; --text-secondary: #cbd5e1;
+      --text-muted: #64748b; --shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+    body {
+      font-family: 'Inter', sans-serif; background: #000; color: var(--text-primary);
+      overflow: hidden; height: 100vh;
+    }
+    .player-container { position: relative; width: 100vw; height: 100vh; background: #000; display: flex; align-items: center; justify-content: center; }
+    #videoPlayer { width: 100%; height: 100%; object-fit: contain; background: #000; }
 
-        :root {
-            --primary: #6366f1;
-            --secondary: #ec4899;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --error: #ef4444;
-            --dark: #0f172a;
-            --dark-light: #1e293b;
-            --dark-lighter: #334155;
-            --glass: rgba(255, 255, 255, 0.1);
-            --glass-strong: rgba(255, 255, 255, 0.15);
-            --glass-border: rgba(255, 255, 255, 0.2);
-            --text-primary: #f8fafc;
-            --text-secondary: #cbd5e1;
-            --text-muted: #64748b;
-            --shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-        }
+    /* Top Overlay */
+    .top-overlay {
+      position: absolute; top: 0; left: 0; right: 0; padding: 1.5rem;
+      background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 70%, transparent 100%);
+      display: flex; justify-content: space-between; align-items: flex-start; z-index: 100;
+      transition: opacity 0.3s ease;
+    }
+    .channel-info {
+      display: flex; align-items: center; gap: 1rem;
+      background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(20px);
+      padding: 1rem 1.5rem; border-radius: 16px; border: 1px solid var(--glass-border);
+    }
+    .channel-logo { width: 60px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--glass); border: 1px solid var(--glass-border);}
+    .channel-logo img { width: 100%; height: 100%; object-fit: contain; }
+    .channel-details h2 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .channel-details .channel-number { font-size: 0.9rem; color: var(--primary); font-weight: 500; }
+    .top-controls { display: flex; gap: 0.75rem; }
+    .control-btn {
+      width: 48px; height: 48px; background: rgba(0,0,0,0.5); backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border); border-radius: 12px; color: var(--text-primary);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all 0.3s ease; font-size: 1.1rem;
+    }
+    .control-btn:hover { background: var(--glass-strong); transform: translateY(-1px); box-shadow: var(--shadow); }
+    .logout-btn { background: linear-gradient(135deg, var(--error), #dc2626); }
 
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #000;
-            color: var(--text-primary);
-            overflow: hidden;
-            height: 100vh;
-        }
+    /* Sidebar */
+    .channel-sidebar { position: fixed; top: 0; left: 0; width: 380px; height: 100vh;
+      background: rgba(15,23,42,0.95); backdrop-filter: blur(30px); border-right: 1px solid var(--glass-border);
+      transform: translateX(-100%); transition: transform 0.4s ease; z-index: 200; display: flex; flex-direction: column;
+    }
+    .channel-sidebar.open { transform: translateX(0); }
+    .sidebar-header { padding: 2rem 1.5rem 1rem; border-bottom: 1px solid var(--glass-border); background: rgba(0,0,0,0.3); }
+    .sidebar-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .channel-count { color: var(--text-muted); font-size: 0.9rem; }
+    .channels-list { flex: 1; overflow-y: auto; padding: 1rem 0; }
 
-        /* Main Player Container */
-        .player-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            background: #000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* Video Player */
-        #videoPlayer {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            background: #000;
-        }
-
-        /* Top Overlay */
-        .top-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            padding: 1.5rem;
-            background: linear-gradient(180deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.4) 70%, transparent 100%);
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            z-index: 100;
-            transition: opacity 0.3s ease;
-        }
-
-        .channel-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(20px);
-            padding: 1rem 1.5rem;
-            border-radius: 16px;
-            border: 1px solid var(--glass-border);
-        }
-
-        .channel-logo {
-            width: 60px;
-            height: 40px;
-            background: var(--glass);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            border: 1px solid var(--glass-border);
-        }
-
-        .channel-logo img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-
-        .channel-details h2 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 0.25rem;
-            color: var(--text-primary);
-        }
-
-        .channel-details .channel-number {
-            font-size: 0.9rem;
-            color: var(--primary);
-            font-weight: 500;
-        }
-
-        .top-controls {
-            display: flex;
-            gap: 0.75rem;
-        }
-
-        .control-btn {
-            width: 48px;
-            height: 48px;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            color: var(--text-primary);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            font-size: 1.1rem;
-        }
-
-        .control-btn:hover {
-            background: var(--glass-strong);
-            transform: translateY(-1px);
-            box-shadow: var(--shadow);
-        }
-
-        .control-btn.active {
-            background: var(--primary);
-            color: white;
-        }
-
-        /* Channel Sidebar */
-        .channel-sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 380px;
-            height: 100vh;
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(30px);
-            border-right: 1px solid var(--glass-border);
-            transform: translateX(-100%);
-            transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-            z-index: 200;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .channel-sidebar.open {
-            transform: translateX(0);
-        }
-
-        .sidebar-header {
-            padding: 2rem 1.5rem 1rem;
-            border-bottom: 1px solid var(--glass-border);
-            background: rgba(0, 0, 0, 0.3);
-        }
-
-        .sidebar-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 0.5rem;
-        }
-
-        .channel-count {
-            color: var(--text-muted);
-            font-size: 0.9rem;
-        }
-
-        .channels-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 1rem 0;
-        }
-
-        .channels-list::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .channels-list::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .channels-list::-webkit-scrollbar-thumb {
-            background: var(--glass-border);
-            border-radius: 3px;
-        }
-
-        .channel-item {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 0.875rem 1.5rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            border: none;
-            background: none;
-            color: var(--text-primary);
-            width: 100%;
-            text-align: left;
-            position: relative;
-        }
-
-        .channel-item::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 3px;
-            background: var(--primary);
-            transform: scaleY(0);
-            transition: transform 0.2s ease;
-        }
-
-        .channel-item:hover {
-            background: var(--glass);
-        }
-
-        .channel-item:focus {
-            outline: none;
-            background: var(--glass);
-        }
-
-        .channel-item.active {
-            background: linear-gradient(90deg, rgba(99, 102, 241, 0.15), transparent);
-            color: var(--primary);
-        }
-
-        .channel-item.active::before {
-            transform: scaleY(1);
-        }
-
-        .channel-item .logo {
-            width: 50px;
-            height: 32px;
-            background: var(--glass);
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            flex-shrink: 0;
-        }
-
-        .channel-item .logo img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-
-        .channel-item .info {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .channel-item .name {
-            font-weight: 500;
-            font-size: 0.95rem;
-            margin-bottom: 0.25rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .channel-item .number {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            font-weight: 500;
-        }
-
-        .channel-item.active .number {
-            color: var(--primary);
-        }
-
-        /* Number OSD */
-        .number-osd {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 2rem 3rem;
-            font-size: 4rem;
-            font-weight: 700;
-            color: var(--primary);
-            display: none;
-            z-index: 300;
-            animation: osdPop 0.3s ease-out;
-        }
-
-        @keyframes osdPop {
-            0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
-            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-        }
-
-        /* Bottom Controls */
-        .bottom-overlay {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 1.5rem;
-            background: linear-gradient(0deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.4) 70%, transparent 100%);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 100;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .controls-hint {
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(15px);
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            padding: 1rem 1.5rem;
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-            line-height: 1.4;
-            max-width: 500px;
-        }
-
-        .logout-btn {
-            background: linear-gradient(135deg, var(--error), #dc2626);
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 10px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 0.9rem;
-        }
-
-        .logout-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3);
-        }
-
-        /* Loading States */
-        .loading-spinner {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 60px;
-            height: 60px;
-            border: 3px solid var(--glass-border);
-            border-top: 3px solid var(--primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            z-index: 150;
-        }
-
-        @keyframes spin {
-            0% { transform: translate(-50%, -50%) rotate(0deg); }
-            100% { transform: translate(-50%, -50%) rotate(360deg); }
-        }
-
-        .error-message {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--glass-border);
-            border-radius: 16px;
-            padding: 2rem;
-            text-align: center;
-            max-width: 400px;
-            z-index: 150;
-        }
-
-        .error-message h3 {
-            color: var(--error);
-            margin-bottom: 1rem;
-            font-size: 1.25rem;
-        }
-
-        .error-message p {
-            color: var(--text-secondary);
-            margin-bottom: 1.5rem;
-        }
-
-        .retry-btn {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-        }
-
-        /* Mobile Responsiveness */
-        @media (max-width: 768px) {
-            .channel-sidebar {
-                width: 300px;
-            }
-            
-            .top-overlay {
-                padding: 1rem;
-            }
-            
-            .channel-info {
-                padding: 0.75rem 1rem;
-            }
-            
-            .channel-info h2 {
-                font-size: 1rem;
-            }
-            
-            .control-btn {
-                width: 42px;
-                height: 42px;
-                font-size: 1rem;
-            }
-            
-            .number-osd {
-                font-size: 3rem;
-                padding: 1.5rem 2.5rem;
-            }
-            
-            .controls-hint {
-                display: none;
-            }
-        }
-
-        /* Hide overlays when inactive */
-        .player-container.inactive .top-overlay,
-        .player-container.inactive .bottom-overlay {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .player-container:hover .top-overlay,
-        .player-container:hover .bottom-overlay,
-        .player-container.sidebar-open .top-overlay,
-        .player-container.sidebar-open .bottom-overlay {
-            opacity: 1;
-            pointer-events: all;
-        }
-    </style>
+    /* Logout popup */
+    .logout-popup {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border); border-radius: 16px;
+      padding: 2rem; text-align: center; z-index: 999; color: var(--text-primary);
+      display: none; animation: osdPop 0.3s ease-out;
+    }
+    @keyframes osdPop {
+      0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+  </style>
 </head>
 <body>
-    <div class="player-container" id="playerContainer">
-        <!-- Video Player -->
-        <video id="videoPlayer" controls playsinline></video>
-        
-        <!-- Loading Spinner -->
-        <div class="loading-spinner" id="loadingSpinner" style="display: none;"></div>
-        
-        <!-- Error Message -->
-        <div class="error-message" id="errorMessage" style="display: none;">
-            <h3>Connection Error</h3>
-            <p>Unable to load the channel. Please check your connection and try again.</p>
-            <button class="retry-btn" onclick="retryCurrentChannel()">Retry</button>
+  <div class="player-container" id="playerContainer">
+    <!-- Video Player -->
+    <video id="videoPlayer" controls playsinline></video>
+
+    <!-- Top Overlay -->
+    <div class="top-overlay">
+      <div class="channel-info">
+        <div class="channel-logo"><img id="currentLogo" src="" alt="Channel Logo" onerror="this.style.opacity='0.3'"></div>
+        <div class="channel-details">
+          <h2 id="currentTitle">Select Channel</h2>
+          <div class="channel-number" id="currentNumber">#0</div>
         </div>
-        
-        <!-- Top Overlay -->
-        <div class="top-overlay">
-            <div class="channel-info">
-                <div class="channel-logo">
-                    <img id="currentLogo" src="" alt="Channel Logo" onerror="this.style.opacity='0.3'">
-                </div>
-                <div class="channel-details">
-                    <h2 id="currentTitle">Select Channel</h2>
-                    <div class="channel-number" id="currentNumber">#0</div>
-                </div>
-            </div>
-            
-            <div class="top-controls">
-                <button class="control-btn" id="menuBtn" title="Channel List">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="3" y1="12" x2="21" y2="12"></line>
-                        <line x1="3" y1="6" x2="21" y2="6"></line>
-                        <line x1="3" y1="18" x2="21" y2="18"></line>
-                    </svg>
-                </button>
-                <button class="control-btn logout-btn" id="logoutBtn" title="Logout">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path>
-                    </svg>
-                </button>
-            </div>
-        </div>
-        
-        <!-- Bottom Overlay -->
-        <div class="bottom-overlay">
-        </div>
-        
-        <!-- Channel Sidebar -->
-        <div class="channel-sidebar" id="channelSidebar">
-            <div class="sidebar-header">
-                <h3 class="sidebar-title">Channels</h3>
-                <div class="channel-count" id="channelCount">0 channels</div>
-            </div>
-            <div class="channels-list" id="channelsList"></div>
-        </div>
-        
-        <!-- Number OSD -->
-        <div class="number-osd" id="numberOSD"></div>
+      </div>
+      <div class="top-controls">
+        <button class="control-btn" id="menuBtn" title="Channel List">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+        <!-- 🔴 Updated logout button -->
+        <button class="control-btn logout-btn" id="logoutBtn" title="Logout">
+          <img src="logout.png" alt="Logout" style="width:20px; height:20px;">
+        </button>
+      </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.0/dist/hls.min.js"></script>
-    <script>
-        // Global variables
-        let channels = [];
-        let currentChannelIndex = -1;
-        let hls = null;
-        let numberBuffer = '';
-        let numberTimeout = null;
-        let inactivityTimer = null;
+    <!-- Channel Sidebar -->
+    <div class="channel-sidebar" id="channelSidebar">
+      <div class="sidebar-header">
+        <h3 class="sidebar-title">Channels</h3>
+        <div class="channel-count" id="channelCount">0 channels</div>
+      </div>
+      <div class="channels-list" id="channelsList"></div>
+    </div>
 
-        // DOM elements
-        const playerContainer = document.getElementById('playerContainer');
-        const videoPlayer = document.getElementById('videoPlayer');
-        const channelSidebar = document.getElementById('channelSidebar');
-        const channelsList = document.getElementById('channelsList');
-        const currentTitle = document.getElementById('currentTitle');
-        const currentNumber = document.getElementById('currentNumber');
-        const currentLogo = document.getElementById('currentLogo');
-        const numberOSD = document.getElementById('numberOSD');
-        const channelCount = document.getElementById('channelCount');
-        const menuBtn = document.getElementById('menuBtn');
-        const logoutBtn = document.getElementById('logoutBtn');
-        const loadingSpinner = document.getElementById('loadingSpinner');
-        const errorMessage = document.getElementById('errorMessage');
+    <!-- Logout popup -->
+    <div class="logout-popup" id="logoutPopup">
+      <h3>Logged Out</h3>
+      <p>You have been logged out successfully.</p>
+    </div>
+  </div>
 
-        // Check authentication
-        if (localStorage.getItem('bdiptv_activated') !== 'true') {
-            window.location.href = 'index.html';
-        }
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.0/dist/hls.min.js"></script>
+  <script>
+    // logout function (updated)
+    function logout() {
+      localStorage.removeItem('bdiptv_activated');
+      const popup = document.getElementById('logoutPopup');
+      popup.style.display = 'block';
+      setTimeout(() => {
+        window.location.href = 'index.html';
+      }, 1500);
+    }
 
-        // Initialize app
-        init();
-
-        async function init() {
-            setupEventListeners();
-            await loadPlaylist();
-            resetInactivityTimer();
-        }
-
-        function setupEventListeners() {
-            // Menu button
-            menuBtn.addEventListener('click', toggleSidebar);
-
-            // Logout button
-            logoutBtn.addEventListener('click', logout);
-
-            // Keyboard controls
-            document.addEventListener('keydown', handleKeyDown);
-
-            // Mouse activity
-            document.addEventListener('mousemove', resetInactivityTimer);
-            document.addEventListener('click', resetInactivityTimer);
-
-            // Video events
-            videoPlayer.addEventListener('loadstart', () => showLoading(true));
-            videoPlayer.addEventListener('canplay', () => {
-                showLoading(false);
-                hideError();
-            });
-            videoPlayer.addEventListener('error', handleVideoError);
-
-            // Sidebar navigation
-            channelsList.addEventListener('keydown', handleSidebarNavigation);
-        }
-
-        async function loadPlaylist() {
-            try {
-                showLoading(true);
-                const response = await fetch('tv.m3u');
-                if (!response.ok) throw new Error('Playlist not found');
-                
-                const playlistText = await response.text();
-                parseM3U(playlistText);
-                
-                if (channels.length > 0) {
-                    renderChannelsList();
-                    loadChannel(0);
-                }
-                showLoading(false);
-            } catch (error) {
-                console.error('Failed to load playlist:', error);
-                showError('Unable to load channel list. Please contact support.');
-            }
-        }
-
-        function parseM3U(text) {
-            channels = [];
-            const lines = text.split(/\r?\n/);
-            let currentExtinf = '';
-            let channelNumber = 1;
-
-            lines.forEach(line => {
-                line = line.trim();
-                if (!line) return;
-
-                if (line.startsWith('#EXTINF')) {
-                    currentExtinf = line;
-                } else if (!line.startsWith('#')) {
-                    let title = `Channel ${channelNumber}`;
-                    let logo = '';
-
-                    if (currentExtinf) {
-                        const commaIndex = currentExtinf.indexOf(',');
-                        if (commaIndex > -1) {
-                            title = currentExtinf.slice(commaIndex + 1).trim();
-                        }
-
-                        const logoMatch = currentExtinf.match(/tvg-logo\s*=\s*"([^"]+)"/i);
-                        if (logoMatch) logo = logoMatch[1];
-                    }
-
-                    channels.push({
-                        number: channelNumber,
-                        title,
-                        url: line,
-                        logo
-                    });
-
-                    channelNumber++;
-                    currentExtinf = '';
-                }
-            });
-
-            channelCount.textContent = `${channels.length} channels`;
-        }
-
-        function renderChannelsList() {
-            channelsList.innerHTML = '';
-
-            channels.forEach((channel, index) => {
-                const channelItem = document.createElement('button');
-                channelItem.className = 'channel-item';
-                channelItem.dataset.index = index;
-                channelItem.innerHTML = `
-                    <div class="logo">
-                        <img src="${channel.logo || ''}" alt="${channel.title}" onerror="this.style.opacity='0.3'">
-                    </div>
-                    <div class="info">
-                        <div class="name">${channel.title}</div>
-                        <div class="number">#${channel.number}</div>
-                    </div>
-                `;
-
-                channelItem.addEventListener('click', () => {
-                    loadChannel(index);
-                    closeSidebar();
-                });
-
-                channelsList.appendChild(channelItem);
-            });
-
-            updateActiveChannel();
-        }
-
-        function loadChannel(index) {
-            if (index < 0 || index >= channels.length) return;
-
-            const channel = channels[index];
-            currentChannelIndex = index;
-
-            // Update UI
-            currentTitle.textContent = channel.title;
-            currentNumber.textContent = `#${channel.number}`;
-            currentLogo.src = channel.logo || '';
-
-            // Load stream
-            loadStream(channel.url);
-            updateActiveChannel();
-            hideNumberOSD();
-        }
-
-        function loadStream(url) {
-            showLoading(true);
-            hideError();
-
-            // Cleanup previous HLS instance
-            if (hls) {
-                hls.destroy();
-                hls = null;
-            }
-
-            // Check if browser supports HLS natively
-            if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
-                videoPlayer.src = url;
-            } else if (window.Hls && Hls.isSupported()) {
-                hls = new Hls();
-                hls.loadSource(url);
-                hls.attachMedia(videoPlayer);
-                hls.on(Hls.Events.ERROR, handleHlsError);
-            } else {
-                videoPlayer.src = url;
-            }
-
-            videoPlayer.play().catch(error => {
-                console.error('Play failed:', error);
-                handleVideoError();
-            });
-        }
-
-        function handleVideoError() {
-            showLoading(false);
-            showError('Unable to play this channel. It may be temporarily unavailable.');
-        }
-
-        function handleHlsError(event, data) {
-            if (data.fatal) {
-                showLoading(false);
-                showError('Stream error. Please try another channel.');
-            }
-        }
-
-        function showLoading(show) {
-            loadingSpinner.style.display = show ? 'block' : 'none';
-        }
-
-        function showError(message) {
-            errorMessage.style.display = 'block';
-            errorMessage.querySelector('p').textContent = message;
-        }
-
-        function hideError() {
-            errorMessage.style.display = 'none';
-        }
-
-        function retryCurrentChannel() {
-            if (currentChannelIndex >= 0) {
-                loadChannel(currentChannelIndex);
-            }
-        }
-
-        function updateActiveChannel() {
-            const items = channelsList.querySelectorAll('.channel-item');
-            items.forEach((item, index) => {
-                item.classList.toggle('active', index === currentChannelIndex);
-            });
-        }
-
-        function toggleSidebar() {
-            if (channelSidebar.classList.contains('open')) {
-                closeSidebar();
-            } else {
-                openSidebar();
-            }
-        }
-
-        function openSidebar() {
-            channelSidebar.classList.add('open');
-            playerContainer.classList.add('sidebar-open');
-            
-            // Focus current channel
-            const activeItem = channelsList.querySelector('.channel-item.active');
-            if (activeItem) {
-                activeItem.focus();
-                activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-        }
-
-        function closeSidebar() {
-            channelSidebar.classList.remove('open');
-            playerContainer.classList.remove('sidebar-open');
-        }
-
-        function handleKeyDown(event) {
-            // Number input for channel jumping
-            if (event.key >= '0' && event.key <= '9') {
-                handleNumberInput(event.key);
-                return;
-            }
-
-            // Don't handle other keys if sidebar is open (let sidebar handle them)
-            if (channelSidebar.classList.contains('open')) return;
-
-            switch (event.key) {
-                case 'ArrowLeft':
-                case 'Menu':
-                    event.preventDefault();
-                    openSidebar();
-                    break;
-                case 'ArrowRight':
-                case 'Escape':
-                    event.preventDefault();
-                    closeSidebar();
-                    hideNumberOSD();
-                    break;
-                case 'Enter':
-                    if (numberBuffer) {
-                        event.preventDefault();
-                        jumpToChannel();
-                    }
-                    break;
-            }
-        }
-
-        function handleSidebarNavigation(event) {
-            if (!channelSidebar.classList.contains('open')) return;
-
-            const items = Array.from(channelsList.querySelectorAll('.channel-item'));
-            const currentFocus = document.activeElement;
-            const currentIndex = items.indexOf(currentFocus);
-
-            switch (event.key) {
-                case 'ArrowUp':
-                    event.preventDefault();
-                    const prevIndex = Math.max(0, currentIndex - 1);
-                    items[prevIndex].focus();
-                    break;
-                case 'ArrowDown':
-                    event.preventDefault();
-                    const nextIndex = Math.min(items.length - 1, currentIndex + 1);
-                    items[nextIndex].focus();
-                    break;
-                case 'Enter':
-                    event.preventDefault();
-                    if (currentFocus && currentFocus.dataset.index) {
-                        loadChannel(parseInt(currentFocus.dataset.index));
-                        closeSidebar();
-                    }
-                    break;
-                case 'ArrowRight':
-                case 'Escape':
-                    event.preventDefault();
-                    closeSidebar();
-                    break;
-            }
-        }
-
-        function handleNumberInput(digit) {
-            numberBuffer += digit;
-            showNumberOSD();
-
-            // Clear existing timeout
-            if (numberTimeout) clearTimeout(numberTimeout);
-
-            // Auto-jump after 2 seconds
-            numberTimeout = setTimeout(jumpToChannel, 2000);
-        }
-
-        function showNumberOSD() {
-            numberOSD.textContent = numberBuffer;
-            numberOSD.style.display = 'block';
-        }
-
-        function hideNumberOSD() {
-            numberBuffer = '';
-            numberOSD.style.display = 'none';
-            if (numberTimeout) {
-                clearTimeout(numberTimeout);
-                numberTimeout = null;
-            }
-        }
-
-        function jumpToChannel() {
-            if (!numberBuffer) return;
-
-            const channelNumber = parseInt(numberBuffer, 10);
-            const channelIndex = channels.findIndex(ch => ch.number === channelNumber);
-
-            if (channelIndex !== -1) {
-                loadChannel(channelIndex);
-            }
-
-            hideNumberOSD();
-        }
-
-        function logout() {
-            if (confirm('Are you sure you want to logout?')) {
-                localStorage.removeItem('bdiptv_activated');
-                window.location.href = 'index.html';
-            }
-        }
-
-        function resetInactivityTimer() {
-            playerContainer.classList.remove('inactive');
-            
-            if (inactivityTimer) clearTimeout(inactivityTimer);
-            
-            inactivityTimer = setTimeout(() => {
-                if (!channelSidebar.classList.contains('open')) {
-                    playerContainer.classList.add('inactive');
-                }
-            }, 3000);
-        }
-
-        // Handle page visibility changes
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden && videoPlayer && !videoPlayer.paused) {
-                videoPlayer.pause();
-            }
-        });
-
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', () => {
-            if (hls) {
-                hls.destroy();
-            }
-        });
-    </script>
+    // add event listener
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+  </script>
 </body>
 </html>
