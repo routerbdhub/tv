@@ -362,8 +362,10 @@
       }
     }
 
-    // Keyboard controls
+    // Enhanced keyboard controls with left/right for sidebar
     document.addEventListener('keydown', (e) => {
+      const sidebarOpen = channelSidebar.classList.contains('open');
+      
       switch (e.code) {
         case 'ArrowUp':
           e.preventDefault();
@@ -375,6 +377,18 @@
           e.preventDefault();
           if (currentChannelIndex < channels.length - 1) {
             playChannel(currentChannelIndex + 1);
+          }
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          if (!sidebarOpen) {
+            toggleSidebar(true); // Open sidebar
+          }
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          if (sidebarOpen) {
+            toggleSidebar(false); // Close sidebar
           }
           break;
         case 'Escape':
